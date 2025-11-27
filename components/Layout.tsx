@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Menu, Home, ChevronDown, ChevronRight, LayoutDashboard, Briefcase, Settings, Cloud } from 'lucide-react';
+import { Menu, X, Home, ChevronDown, ChevronRight, LogOut, LayoutDashboard, Briefcase } from 'lucide-react';
 import { MENU_STRUCTURE, LOGO_URL } from '../constants';
 
 interface LayoutProps {
@@ -8,17 +7,13 @@ interface LayoutProps {
   activeCategory: string | null;
   activeSubCategory: string | null;
   onNavigate: (category: string | null, subCategory: string | null) => void;
-  onOpenSettings: () => void;
-  isSyncing?: boolean;
 }
 
 export const Layout: React.FC<LayoutProps> = ({ 
   children, 
   activeCategory, 
   activeSubCategory, 
-  onNavigate,
-  onOpenSettings,
-  isSyncing = false
+  onNavigate 
 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
@@ -34,6 +29,7 @@ export const Layout: React.FC<LayoutProps> = ({
 
   const handleNavClick = (cat: string | null, sub: string | null) => {
     onNavigate(cat, sub);
+    // On mobile, close sidebar after selection
     if (window.innerWidth < 768) {
       setIsSidebarOpen(false);
     }
@@ -63,6 +59,7 @@ export const Layout: React.FC<LayoutProps> = ({
               alt="JNE Logo" 
               className="h-12 object-contain"
               onError={(e) => {
+                // Fallback text if image fails
                 (e.target as HTMLImageElement).style.display = 'none';
                 ((e.target as HTMLImageElement).nextSibling as HTMLElement).style.display = 'block';
               }}
@@ -127,19 +124,6 @@ export const Layout: React.FC<LayoutProps> = ({
                 )}
               </div>
             ))}
-            
-            <div className="pt-4 border-t border-gray-100 mt-4">
-              <button
-                onClick={onOpenSettings}
-                className="flex items-center w-full px-3 py-3 text-sm font-medium text-gray-600 rounded-lg hover:bg-blue-50 hover:text-blue-700 transition-colors"
-              >
-                <div className={`mr-3 ${isSyncing ? 'animate-pulse text-green-500' : 'text-gray-400'}`}>
-                  <Cloud className="w-5 h-5" />
-                </div>
-                Integrasi Google Drive
-                {isSyncing && <span className="ml-auto text-xs text-green-600 font-bold">Sync...</span>}
-              </button>
-            </div>
           </nav>
 
           {/* Footer User Info */}
@@ -148,9 +132,9 @@ export const Layout: React.FC<LayoutProps> = ({
               <div className="w-8 h-8 rounded-full bg-[#002F6C] flex items-center justify-center text-white font-bold text-xs">
                 AD
               </div>
-              <div className="ml-3 overflow-hidden">
-                <p className="text-sm font-medium text-gray-700 truncate">Admin User</p>
-                <p className="text-xs text-gray-500 truncate">Divisi Operasional</p>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-gray-700">Admin User</p>
+                <p className="text-xs text-gray-500">Divisi Operasional</p>
               </div>
             </div>
           </div>

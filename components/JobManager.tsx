@@ -1,7 +1,6 @@
-
 import React, { useState, useRef } from 'react';
 import { Job, Status } from '../types';
-import { Plus, Upload, Trash2, Edit2, Check, X, Search, FileDown } from 'lucide-react';
+import { Plus, Upload, Trash2, Edit2, Check, X, Search, Download, FileDown } from 'lucide-react';
 
 interface JobManagerProps {
   category: string;
@@ -58,6 +57,30 @@ export const JobManager: React.FC<JobManagerProps> = ({
     setView('list');
   };
 
+  const handleDownloadTemplate = () => {
+    // Define headers based on category
+    const headers = isProductionMaster
+      ? "Tanggal Input (YYYY-MM-DD),Cabang/Dept,Jenis Pekerjaan,Status,Dateline (YYYY-MM-DD),Tanggal Aktifasi (YYYY-MM-DD)"
+      : "Tanggal Input (YYYY-MM-DD),Cabang/Dept,Jenis Pekerjaan,Status,Dateline (YYYY-MM-DD)";
+
+    // Example row
+    const today = new Date().toISOString().split('T')[0];
+    const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    const exampleRow = isProductionMaster
+      ? `${today},Jakarta,Input Master Vendor,Pending,${nextWeek},${today}`
+      : `${today},Bandung,Update Routing,In Progress,${nextWeek}`;
+
+    const csvContent = "data:text/csv;charset=utf-8," + headers + "\n" + exampleRow;
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Template_${category}_${subCategory}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -65,13 +88,26 @@ export const JobManager: React.FC<JobManagerProps> = ({
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      const lines = text.split('\n');
+      // Handle Windows (\r\n) and Unix (\n) line endings
+      const lines = text.split(/\r\n|\n/);
       const newJobs: Job[] = [];
       
+      // Skip header (index 0), start from index 1
       for(let i=1; i<lines.length; i++) {
         if(!lines[i].trim()) continue;
+        
+        // Handle comma or semicolon separator
         const cols = lines[i].split(/,|;/); 
+        
+        // Basic validation: ensure we have enough columns
         if (cols.length >= 5) {
+            const rawStatus = cols[3]?.trim();
+            // Validate status
+            let validStatus: Status = 'Pending';
+            if (rawStatus === 'In Progress' || rawStatus === 'Completed' || rawStatus === 'Overdue') {
+                validStatus = rawStatus;
+            }
+
             newJobs.push({
                 id: crypto.randomUUID(),
                 category,
@@ -79,7 +115,7 @@ export const JobManager: React.FC<JobManagerProps> = ({
                 dateInput: cols[0]?.trim() || new Date().toISOString().split('T')[0],
                 branchDept: cols[1]?.trim() || 'Unknown',
                 jobType: cols[2]?.trim() || 'Imported Job',
-                status: (['Pending','In Progress','Completed'].includes(cols[3]?.trim()) ? cols[3].trim() : 'Pending') as Status,
+                status: validStatus,
                 deadline: cols[4]?.trim() || new Date().toISOString().split('T')[0],
                 activationDate: isProductionMaster ? cols[5]?.trim() : undefined
             });
@@ -88,36 +124,13 @@ export const JobManager: React.FC<JobManagerProps> = ({
       
       if (newJobs.length > 0) {
           onBulkAddJobs(newJobs);
-          alert(`Berhasil mengimport ${newJobs.length} data!`);
+          alert(`Berhasil mengimport ${newJobs.length} data pekerjaan!`);
       } else {
-          alert("Gagal membaca file atau format tidak sesuai.");
+          alert("Gagal membaca file atau format tidak sesuai. Silakan gunakan Template yang disediakan.");
       }
       if (fileInputRef.current) fileInputRef.current.value = '';
     };
     reader.readAsText(file);
-  };
-
-  const handleExportCSV = () => {
-    const headers = ['Date Input', 'Branch/Dept', 'Job Type', 'Status', 'Deadline', isProductionMaster ? 'Activation Date' : ''].filter(Boolean).join(',');
-    const rows = filteredJobs.map(job => {
-      return [
-        job.dateInput,
-        `"${job.branchDept}"`, // Escape quotes
-        `"${job.jobType}"`,
-        job.status,
-        job.deadline,
-        isProductionMaster ? (job.activationDate || '') : ''
-      ].filter((_, i) => isProductionMaster || i !== 5).join(',');
-    });
-    
-    const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `JNE_Jobs_${category}_${subCategory}_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   // Filter Jobs
@@ -162,18 +175,19 @@ export const JobManager: React.FC<JobManagerProps> = ({
                 onChange={handleFileUpload}
               />
               <button 
-                onClick={handleExportCSV}
-                className="flex items-center justify-center px-3 py-2 bg-green-50 text-green-700 border border-green-100 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium"
+                onClick={handleDownloadTemplate}
+                className="flex items-center justify-center px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                title="Download Template Excel/CSV"
               >
                 <FileDown className="w-4 h-4 mr-2" />
-                Export CSV
+                Template
               </button>
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center justify-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                className="flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
               >
                 <Upload className="w-4 h-4 mr-2" />
-                Import
+                Import Excel/CSV
               </button>
               <button 
                 onClick={() => setView('form')}
@@ -189,7 +203,7 @@ export const JobManager: React.FC<JobManagerProps> = ({
                 className="flex items-center justify-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
               >
                 <X className="w-4 h-4 mr-2" />
-                Batal
+                Kembali ke List
               </button>
           )}
         </div>
@@ -316,7 +330,7 @@ export const JobManager: React.FC<JobManagerProps> = ({
                   {filteredJobs.length === 0 ? (
                     <tr>
                       <td colSpan={isProductionMaster ? 7 : 6} className="p-8 text-center text-gray-400">
-                        Belum ada data pekerjaan untuk kategori ini.
+                        Belum ada data pekerjaan. Gunakan tombol "Import Excel/CSV" atau "Tambah Manual".
                       </td>
                     </tr>
                   ) : (
